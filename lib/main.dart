@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:linkage/screens/inapp_webview_screen.dart';
 import 'package:linkage/screens/prompt_screen.dart';
 
 void main() {
@@ -45,6 +46,6 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: PromptScreen());
+    return Scaffold(body: WebView());
   }
 }
