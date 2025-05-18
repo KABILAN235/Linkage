@@ -9,11 +9,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class WebExtractDialog extends StatefulWidget {
   final String url;
   final String queryUuid;
+  final String additionalPrompt;
 
   const WebExtractDialog({
     super.key,
     required this.url,
     required this.queryUuid,
+    required this.additionalPrompt,
   });
 
   @override
@@ -30,24 +32,32 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
   Future<void> createPdf(InAppWebViewController controller) async {
     Uint8List? pdf = await headlessWebView?.webViewController?.createPdf();
 
+    final String dir = (await getApplicationDocumentsDirectory()).path;
+    final String path = '$dir/${widget.queryUuid}.pdf';
+
+    final File file = File(path);
+    if (pdf != null) {
+      await file.writeAsBytes(pdf);
+    }
+
+    final String fullPath = await supabase.storage
+        .from("linkage-bucket")
+        .upload(
+          'linkage_pdf/${widget.queryUuid}.pdf',
+          file,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
+
     final response = await supabase.functions.invoke(
       'scraper',
-      body: pdf,
-      queryParameters: {'queryUuid': widget.queryUuid},
+      body: {
+        'queryUuid': widget.queryUuid,
+        'pdfUrl': 'linkage_pdf/${widget.queryUuid}.pdf',
+        'additionalPrompt': widget.additionalPrompt,
+      },
     );
 
-    debugPrint(response.data.toString());
-
-    // final String dir = (await getApplicationDocumentsDirectory()).path;
-    // final String path = '$dir/example.pdf';
-
-    // final File file = File(path);
-    // if (pdf != null) {
-    //   await file.writeAsBytes(pdf);
-
-    //   print(file.path);
-    //   print(dir);
-    // } else {}
+    debugPrint(response.toString());
   }
 
   @override
@@ -83,7 +93,7 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: true,
+      canPop: false,
       child: AlertDialog(
         title: const Text('Extracting Data'),
         titleTextStyle: Theme.of(context).textTheme.bodyMedium,

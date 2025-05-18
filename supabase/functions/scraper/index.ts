@@ -1,12 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import OpenAI, { toFile } from 'jsr:@openai/openai';
+import OpenAI from 'jsr:@openai/openai';
 import "./types.ts";
 
 
 
 Deno.serve(async (req) => {
   try {
+    const {queryUuid,pdfUrl,additionalPrompt} = await req.json();
+
     const client = new OpenAI({
       apiKey: Deno.env.get('OPENAI_API_KEY'),
     });
@@ -20,18 +22,18 @@ Deno.serve(async (req) => {
 
     const { data ,error } = await supabase.storage
       .from("linkage-bucket")
-      .download("linkage_pdf/example.pdf");
+      .download(pdfUrl);
     
     if (error) throw error
 
-    const pdfTempPath = "/tmp/example.pdf";
+    const pdfTempPath = `/tmp/${queryUuid}.pdf`;
     await Deno.writeFile(pdfTempPath, new Uint8Array(await data.arrayBuffer()));
 
     const fileContent = await Deno.readFile(pdfTempPath);
     const blob = new Blob([fileContent], { type: "application/pdf" });
 
     const formData = new FormData();
-    formData.append("file", blob, "myfile.pdf");
+    formData.append("file", blob, `${queryUuid}.pdf`);
     formData.append("purpose", "assistants");
 
     const fileUploadResponse = await fetch("https://api.openai.com/v1/files", {
@@ -63,10 +65,10 @@ Deno.serve(async (req) => {
                     type: "input_file",
                     file_id: fileResponse.id ,
               },
-            // {
-            //   type: "input_text",
-            //   text: "What do you see on the PDF?",
-            // },
+            {
+              type: "input_text",
+              text: additionalPrompt??"",
+            },
           ],
         },
       ],
@@ -90,10 +92,80 @@ Deno.serve(async (req) => {
       store: true
     });
 
+    const jsonResponse = JSON.parse(response.output_text)
+
+    const columns = jsonResponse['Columns'];
+    const datapoints = jsonResponse['Data'];
+
+    let columnIds: { [key: string]: string } = {};
+
+    for (const [index, columnName] of columns.entries()) {
+      const { data: insertData, error: insertError } = await supabase
+        .from('Column')
+        .insert([
+          {
+            query_uuid: queryUuid,
+            name: columnName,
+            sort_idx: index,
+          },
+        ])
+        .select("uuid")
+        .single();
+
+      if (insertError) throw insertError;
+      if (!insertData) throw new Error("Failed to insert column or retrieve its UUID");
+
+      columnIds[columnName] = insertData.uuid;
+    }
+
+    for (const [index, datapoint] of datapoints.entries()) {
+      // Create a Record for this row of data
+      const { data: recordInsertData, error: recordInsertError } = await supabase
+        .from('Record')
+        .insert([
+          {
+            query_uuid: queryUuid,
+            sort_idx: index,
+            // created_at will be set by default by the database
+          },
+        ])
+        .select("uuid")
+        .single();
+
+      if (recordInsertError) throw recordInsertError;
+      if (!recordInsertData) throw new Error("Failed to insert record or retrieve its UUID");
+      
+      const recordUuid = recordInsertData.uuid;
+
+      // Prepare Datapoint entries for this Record
+      const datapointEntries = Object.entries(datapoint).map(([columnName, value]) => {
+        if (columnIds[columnName] === undefined) {
+          // This case should ideally not happen if JSON response is consistent
+          // Or handle as per your application's error strategy (e.g., skip, log, error)
+          console.warn(`Column ID not found for column name: ${columnName}. Skipping this datapoint.`);
+          return null; 
+        }
+        return {
+          record_id: recordUuid,
+          column_id: columnIds[columnName],
+          data: String(value), // Ensure data is stored as a string
+        };
+      }).filter(entry => entry !== null); // Filter out any null entries if a column was skipped
+
+      if (datapointEntries.length > 0) {
+        const { error: datapointInsertError } = await supabase
+          .from('Datapoint')
+          .insert(datapointEntries as any); // Cast as any if TS complains about the filtered array type
+
+        if (datapointInsertError) throw datapointInsertError;
+      }
+    }
+
+
     
 
     return new Response(
-      JSON.stringify({ answer: response }),
+      JSON.stringify({ answer: jsonResponse }),
       { status: 200 }
     );
   } catch (_error) {

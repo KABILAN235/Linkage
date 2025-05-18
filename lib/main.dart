@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:linkage/screens/login_screen.dart';
 import 'package:linkage/screens/prompt_screen.dart';
+import 'package:linkage/screens/table_screen/table_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -47,10 +48,13 @@ class MyApp extends StatelessWidget {
       ),
       // darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
-      initialRoute: supabase.auth.currentSession == null ? "/login" : "/home",
+      initialRoute: supabase.auth.currentSession == null ? "/login" : "/table",
       routes: {
         '/home': (context) => const PromptScreen(),
         "/login": (context) => LoginScreen(),
+        "/table":
+            (context) =>
+                TableScreen(queryUuid: "c5eb881f-c855-4540-b756-c4e60b9e8da2"),
       },
     );
   }
