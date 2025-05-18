@@ -30,11 +30,13 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
   Future<void> createPdf(InAppWebViewController controller) async {
     Uint8List? pdf = await headlessWebView?.webViewController?.createPdf();
 
-    supabase.functions.invoke(
+    final response = await supabase.functions.invoke(
       'scraper',
       body: pdf,
       queryParameters: {'queryUuid': widget.queryUuid},
     );
+
+    debugPrint(response.data.toString());
 
     // final String dir = (await getApplicationDocumentsDirectory()).path;
     // final String path = '$dir/example.pdf';
@@ -81,7 +83,7 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
+      canPop: true,
       child: AlertDialog(
         title: const Text('Extracting Data'),
         titleTextStyle: Theme.of(context).textTheme.bodyMedium,
