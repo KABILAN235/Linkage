@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:linkage/widgets/ogp_metadata_card.dart';
+import 'package:linkage/widgets/web_extract_dialog.dart';
 import 'package:ogp_data_extract/ogp_data_extract.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,6 +14,7 @@ class PromptScreen extends StatefulWidget {
 
 class _PromptScreenState extends State<PromptScreen> {
   final TextEditingController linkController = TextEditingController();
+  final TextEditingController promptController = TextEditingController();
   OgpData? ogpData;
 
   String lastURL = "";
@@ -22,6 +24,7 @@ class _PromptScreenState extends State<PromptScreen> {
   @override
   void dispose() {
     linkController.dispose();
+    promptController.dispose();
     super.dispose();
   }
 
@@ -79,6 +82,24 @@ class _PromptScreenState extends State<PromptScreen> {
 
   final supabase = Supabase.instance.client;
 
+  Future<String> _createQuery(String url) async {
+    final response = await supabase
+        .from('Query')
+        .insert([
+          {
+            'title': ogpData?.title ?? url,
+            'user_uuid': supabase.auth.currentUser?.id,
+            'url': url,
+            'prompt': promptController.text,
+          },
+        ])
+        .select("uuid");
+
+    final String queryUuid = response[0]['uuid'];
+
+    return queryUuid;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,41 +113,16 @@ class _PromptScreenState extends State<PromptScreen> {
               trailing: IconButton(
                 icon: Icon(Icons.logout),
                 onPressed: () {
-                  // Add your onPressed logic here
                   supabase.auth
                       .signOut()
                       .then((_) {
                         Navigator.of(context).pushReplacementNamed('/login');
                       })
                       .catchError((error) {
-                        print('Error signing out: $error');
+                        debugPrint('Error signing out: $error');
                       });
                 },
               ),
-            ),
-            ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-                // Add navigation logic here
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.settings),
-              title: Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                // Add navigation logic here
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.info),
-              title: Text('About'),
-              onTap: () {
-                Navigator.pop(context);
-                // Add navigation logic here
-              },
             ),
           ],
         ),
@@ -157,6 +153,7 @@ class _PromptScreenState extends State<PromptScreen> {
                         : const SizedBox.shrink(),
               ),
               TextField(
+                controller: promptController,
                 minLines: 1,
                 maxLines: 6, // Allows unlimited lines
                 keyboardType:
@@ -169,7 +166,14 @@ class _PromptScreenState extends State<PromptScreen> {
               ),
               SizedBox(height: 24),
               FilledButton.tonal(
-                onPressed: () => {},
+                onPressed: () async {
+                  // final queryUuid = await _createQuery(linkController.text);
+
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => WebExtractDialog(),
+                  );
+                },
                 style: ButtonStyle(
                   padding: WidgetStateProperty.all(
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -177,6 +181,7 @@ class _PromptScreenState extends State<PromptScreen> {
                 ),
                 child: Text(
                   "Go!",
+
                   // style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
