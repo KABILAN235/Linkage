@@ -1,14 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:linkage/screens/inapp_webview_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:linkage/screens/login_screen.dart';
 import 'package:linkage/screens/prompt_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  try {
+    await dotenv.load(fileName: ".env");
+
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? 'SUPABASE_URL',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? 'SUPABASE_ANON_KEY',
+    );
+
+    debugPrint('Supabase URL: ${dotenv.env['SUPABASE_URL']}');
+    debugPrint('Supabase Anon Key: ${dotenv.env['SUPABASE_ANON_KEY']}');
+  } catch (e, stackTrace) {
+    debugPrint('Failed to initialize Supabase: $e');
+    debugPrint('StackTrace: $stackTrace');
+  }
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
 
+  final supabase = Supabase.instance.client;
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -29,23 +47,11 @@ class MyApp extends StatelessWidget {
       ),
       // darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
-      home: const MyHomePage(title: 'Linkage'),
+      initialRoute: supabase.auth.currentSession == null ? "/login" : "/home",
+      routes: {
+        '/home': (context) => const PromptScreen(),
+        "/login": (context) => LoginScreen(),
+      },
     );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: WebView());
   }
 }
