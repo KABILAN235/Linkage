@@ -1,30 +1,25 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from 'jsr:@supabase/supabase-js@2'
 import "./types.ts";
 
 
 
 Deno.serve(async (req)=>{
     try {
-      const body = await req.arrayBuffer();
+       const supabase = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+          );
+
+      const pdfBody = await req.arrayBuffer();
       const fileName = `file-${Date.now()}.pdf`;
+      
+      const data = await supabase.storage.from("linkage-bucket").upload(fileName,pdfBody);
 
-      // Save the file to Supabase Storage
-      const response = await fetch("https://your-supabase-url.supabase.co/storage/v1/object/bucket-name/" + fileName, {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer your-supabase-service-role-key`,
-          "Content-Type": "application/pdf",
-        },
-        body,
-      });
-
-      if (response.ok) {
         return new Response(JSON.stringify({ message: "File saved successfully", fileName }), { status: 200 });
-      } else {
-        const error = await response.text();
-        return new Response(JSON.stringify({ error }), { status: response.status });
       }
-    } catch (error) {
+     catch (_error) {
       return new Response(JSON.stringify({ error: "Something Bad Happened"}), { status: 500 });
     }
 }); 

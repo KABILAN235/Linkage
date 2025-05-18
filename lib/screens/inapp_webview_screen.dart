@@ -17,6 +17,8 @@ class WebScrapingScreen extends StatefulWidget {
 class _WebScrapingScreenState extends State<WebScrapingScreen> {
   HeadlessInAppWebView? headlessWebView;
 
+  int _progress = 0;
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +28,11 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
       initialSettings: InAppWebViewSettings(isInspectable: kDebugMode),
       onWebViewCreated: (controller) {},
       onConsoleMessage: (controller, consoleMessage) {},
+      onProgressChanged: (controller, progress) {
+        setState(() {
+          _progress = progress;
+        });
+      },
       onLoadStart: (controller, url) async {},
       onLoadStop: (controller, url) async {},
     );

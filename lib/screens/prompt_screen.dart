@@ -167,11 +167,14 @@ class _PromptScreenState extends State<PromptScreen> {
               SizedBox(height: 24),
               FilledButton.tonal(
                 onPressed: () async {
+                  final queryText = linkController.text;
                   // final queryUuid = await _createQuery(linkController.text);
 
                   showDialog(
                     context: context,
-                    builder: (ctx) => WebExtractDialog(),
+                    builder:
+                        (ctx) =>
+                            WebExtractDialog(url: queryText, queryUuid: ""),
                   );
                 },
                 style: ButtonStyle(
