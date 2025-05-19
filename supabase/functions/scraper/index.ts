@@ -161,7 +161,10 @@ Deno.serve(async (req) => {
       }
     }
 
-
+    await supabase
+      .from('Query')
+      .update({ success: true })
+      .eq('uuid', queryUuid);
     
 
     return new Response(

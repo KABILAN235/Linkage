@@ -1,16 +1,41 @@
-# linkage
+# Linkage
 
-A new Flutter project.
+<p align="center">
+    <img src="assets/logo_light.svg" alt="Linkage Logo" width="120" />
+</p>
+
+Linkage is a Flutter project designed to convert URLs into an excel sheet with a click of a button
+
+## Requirements
+- Flutter Version 3.29 or above
+- macOS 14 or above
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+1. **Clone the repository:**
+    ```bash
+    git clone https://github.com/KABILAN235/linkage.git
+    cd linkage
+    ```
 
-A few resources to get you started if this is your first Flutter project:
+2. **Install dependencies:**
+    ```bash
+    flutter pub get
+    ```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+3. **Run the app:**
+    ```bash
+    flutter run
+    ```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Project Structure
+
+```
+lib/
+├── main.dart
+├── src/
+│   ├── screens/
+│   └── widgets/
+├── supabase/
+│   └── functions/ 
+```

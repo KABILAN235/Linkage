@@ -16,9 +16,23 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: FlutterLogo(size: 100),
+              padding: const EdgeInsets.only(top: 48.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 200,
+                  maxHeight: 200,
+                ),
+                child: Image.asset(
+                  Theme.of(context).brightness == Brightness.dark
+                      ? 'assets/logo_dark.png'
+                      : 'assets/logo_light.png',
+                  fit: BoxFit.contain,
+                  errorBuilder:
+                      (context, error, stackTrace) => Text(error.toString()),
+                ),
+              ),
             ),
+            SizedBox(height: 25),
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.75,
               child: SupaEmailAuth(

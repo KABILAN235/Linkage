@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:linkage/screens/prompt_screen/types.dart';
+import 'package:linkage/screens/table_screen/table_screen.dart';
 import 'package:linkage/widgets/ogp_metadata_card.dart';
 import 'package:linkage/widgets/web_extract_dialog.dart';
 import 'package:ogp_data_extract/ogp_data_extract.dart';
@@ -100,6 +102,35 @@ class _PromptScreenState extends State<PromptScreen> {
     return queryUuid;
   }
 
+  Future<List<PastQuery>> _fetchPastQueries() async {
+    if (supabase.auth.currentUser == null) {
+      return []; // No user, no queries
+    }
+    try {
+      final response = await supabase
+          .from('Query')
+          .select('uuid, title, created_at')
+          .eq('user_uuid', supabase.auth.currentUser!.id)
+          .order('created_at', ascending: false) // Show newest first
+          .limit(20); // Limit the number of past queries shown
+
+      final List<PastQuery> queries =
+          (response as List<dynamic>)
+              .map(
+                (data) => PastQuery(
+                  uuid: data['uuid'] as String,
+                  title: data['title'] as String? ?? 'Untitled Query',
+                  createdAt: DateTime.parse(data['created_at'] as String),
+                ),
+              )
+              .toList();
+      return queries;
+    } catch (e) {
+      debugPrint('Error fetching past queries: $e');
+      return []; // Return empty list on error
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,21 +139,90 @@ class _PromptScreenState extends State<PromptScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            ListTile(
-              title: Text(supabase.auth.currentUser?.email ?? "User"),
-              trailing: IconButton(
-                icon: Icon(Icons.logout),
-                onPressed: () {
-                  supabase.auth
-                      .signOut()
-                      .then((_) {
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      })
-                      .catchError((error) {
-                        debugPrint('Error signing out: $error');
-                      });
-                },
+            UserAccountsDrawerHeader(
+              accountName: Text(
+                supabase.auth.currentUser?.email ?? "User email",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
+              accountEmail: Text(
+                "Logged in",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              onTap: () {
+                supabase.auth
+                    .signOut()
+                    .then((_) {
+                      Navigator.of(
+                        context,
+                      ).pushNamedAndRemoveUntil('/login', (route) => false);
+                    })
+                    .catchError((error) {
+                      debugPrint('Error signing out: $error');
+                      // Optionally show a snackbar or dialog on error
+                    });
+              },
+            ),
+            const Divider(),
+            const ListTile(
+              title: Text(
+                'Past Queries',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            FutureBuilder<List<PastQuery>>(
+              future: _fetchPastQueries(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ListTile(
+                    leading: const Icon(Icons.error_outline),
+                    title: const Text('Error loading queries'),
+                    subtitle: Text(snapshot.error.toString()),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const ListTile(title: Text('No past queries found.'));
+                }
+                final queries = snapshot.data!;
+                return Column(
+                  children:
+                      queries.map((query) {
+                        return ListTile(
+                          leading: const Icon(Icons.history),
+                          title: Text(query.title),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                          ),
+                          onTap: () {
+                            Navigator.pop(context); // Close the drawer
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        TableScreen(queryUuid: query.uuid),
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                );
+              },
             ),
           ],
         ),
@@ -137,6 +237,24 @@ class _PromptScreenState extends State<PromptScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             spacing: 12,
             children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(top: 48.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 250,
+                    maxHeight: 250,
+                  ),
+                  child: Image.asset(
+                    Theme.of(context).brightness == Brightness.dark
+                        ? 'assets/logo_dark.png'
+                        : 'assets/logo_light.png',
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (context, error, stackTrace) => Text(error.toString()),
+                  ),
+                ),
+              ),
+              SizedBox(height: 24),
               TextField(
                 controller: linkController,
                 decoration: InputDecoration(

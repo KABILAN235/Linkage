@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:linkage/screens/table_screen/table_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,6 +26,8 @@ class WebExtractDialog extends StatefulWidget {
 class _WebExtractDialogState extends State<WebExtractDialog> {
   final supabase = Supabase.instance.client;
 
+  bool canPop = false;
+
   HeadlessInAppWebView? headlessWebView;
 
   int _progress = 0;
@@ -40,7 +43,7 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
       await file.writeAsBytes(pdf);
     }
 
-    final String fullPath = await supabase.storage
+    await supabase.storage
         .from("linkage-bucket")
         .upload(
           'linkage_pdf/${widget.queryUuid}.pdf',
@@ -48,7 +51,7 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
           fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
         );
 
-    final response = await supabase.functions.invoke(
+    supabase.functions.invoke(
       'scraper',
       body: {
         'queryUuid': widget.queryUuid,
@@ -57,7 +60,15 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
       },
     );
 
-    debugPrint(response.toString());
+    if (mounted) {
+      Navigator.of(context).pop();
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => TableScreen(queryUuid: widget.queryUuid),
+        ),
+      );
+    }
   }
 
   @override
@@ -93,7 +104,7 @@ class _WebExtractDialogState extends State<WebExtractDialog> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
+      canPop: canPop,
       child: AlertDialog(
         title: const Text('Extracting Data'),
         titleTextStyle: Theme.of(context).textTheme.bodyMedium,
